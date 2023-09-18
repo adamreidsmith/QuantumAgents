@@ -70,7 +70,7 @@ def simulate_apc(its=10000, p=None, q=None, seed=None):
     memory_state = 0
     results = []
     for _ in tqdm(range(its), desc=f'Simulating agent for {its} iterations'):
-        qc = encoder.create_quantum_circuit(encoder.memory_state_map[memory_state], input_state_map[input_state])
+        qc = encoder.create_quantum_circuit(memory_state, input_state)
 
         # Obtain the statevector
         sv = Statevector(qc)

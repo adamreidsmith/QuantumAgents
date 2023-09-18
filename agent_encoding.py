@@ -48,7 +48,7 @@ class QuantumAgentEncoder:
             List of outputs to the input-output process. If output_encodings is not specified,
             these should be non-negative integers.
         transition_probs : Callable[[Any, Any, Any], float]
-            A function that takes an output value, and input value, and a causal state in that
+            A function that takes an output value, an input value, and a causal state in that
             order as parameters and returns the transition probability, i.e.
             transition_probs(y, x, s) = P(y|x, s).
         update_rule : Callable[[Any, Any, Any], Any]
@@ -80,6 +80,8 @@ class QuantumAgentEncoder:
         if output_encodings is None:
             output_encodings = self.encode_vals(self.inputs)
         self.output_encodings = output_encodings
+
+        self.input_state_map = {x: x_encoded for x, x_encoded in zip(self.inputs, self.input_encodings)}
 
         # Number of qubits necessary to encode the input and output states
         self.n_qubits_input_tape = int(np.log2(len(self.input_encodings[0])))
@@ -208,10 +210,11 @@ class QuantumAgentEncoder:
 
             if matrix_rank(np.column_stack(nonzero_cols)) != len(nonzero_cols):
                 nonzero_cols.pop()
-            dim_index += 1
 
             if dim_index >= U.shape[0]:
                 raise RuntimeError('Failed to orthonormalize columns')
+
+            dim_index += 1
 
         # Apply Gram-Schmidt to orthonormalize the columns
         nonzero_cols = cls.gram_schmidt(nonzero_cols, start_index=len(nonzero_col_indices))
@@ -433,10 +436,13 @@ class QuantumAgentEncoder:
 
         return full_unitary
 
-    def create_quantum_circuit(self, memory_state, input_state):
+    def create_quantum_circuit(self, causal_state, input_val):
         '''Create a quantum circuit representing the evolution of the quantum agent
         for particular memory and input states
         '''
+
+        input_state = self.input_state_map[input_val]
+        memory_state = self.memory_state_map[causal_state]
 
         if self.unitary is None:
             raise RuntimeError('You must encode the agent before a quantum circuit can be created')
@@ -450,7 +456,7 @@ class QuantumAgentEncoder:
             ]
         )
 
-        qc = QuantumCircuit(n_qubits, self.n_qubits_output_tape)
+        qc = QuantumCircuit(n_qubits)  # , self.n_qubits_output_tape)
 
         # Initialize the circuit in the initial state and apply the unitary operator
         initial_state = multi_kron(
