@@ -35,6 +35,7 @@ class QuantumAgentEncoder:
         input_encodings: list[np.ndarray] | None = None,
         output_encodings: list[np.ndarray] | None = None,
         numerical: bool = True,
+        verbose: bool = False,
     ):
         '''
         Parameters
@@ -63,6 +64,8 @@ class QuantumAgentEncoder:
         numerical : bool
             Whether to solve the multivariate polynomials numerically or symbolically.
             Default: True
+        verbose : bool
+            Print progress during encoding.  Default: False
         '''
 
         self.causal_states = causal_states
@@ -72,6 +75,7 @@ class QuantumAgentEncoder:
         self.transition_probs = transition_probs
         self.update_rule = update_rule
         self.numerical = numerical
+        self.verbose = verbose
 
         # Encode the inputs, if necessary
         if input_encodings is None:
@@ -198,13 +202,12 @@ class QuantumAgentEncoder:
             else:
                 assert np.abs(overlap) < 1e-12, f'Columns {i} and {j} are not orthogonal'
 
-        zero_vector = np.zeros_like(nonzero_cols[0])
+        basis_vectors = np.eye(len(nonzero_cols[0]))
         dim_index = 0
 
         # Extend the set of columns to a basis
         while len(nonzero_cols) < U.shape[1]:
-            basis_vector = zero_vector.copy()
-            basis_vector[dim_index] = 1.0
+            basis_vector = basis_vectors[dim_index]
 
             nonzero_cols.append(basis_vector)
 
@@ -276,8 +279,14 @@ class QuantumAgentEncoder:
     def encode(self):
         '''Encode the agent in the quantum realm'''
 
+        if self.verbose:
+            print('Computing overlaps...')
         input_specialized_overlaps = self.compute_input_specialized_overlaps()
+        if self.verbose:
+            print('Constructing memory/junk states...')
         memory_states, junk_states = self.construct_quantum_memory_junk_states(input_specialized_overlaps)
+        if self.verbose:
+            print('Constructing evolution operator...')
         self.unitary = self.construct_unitary(memory_states, junk_states)
 
     def compute_input_specialized_overlaps(self):
@@ -298,6 +307,9 @@ class QuantumAgentEncoder:
         equations = []
         for x in self.inputs:
             for s0, s1 in self.causal_state_pairs:
+                if s0 == s1:
+                    equations.append(1 - variables[f'c{x}{s0}{s1}'])
+                    continue
                 equation = 0
                 for y in self.outputs:
                     s0_updated = self.update_rule(x, y, s0)
@@ -438,7 +450,7 @@ class QuantumAgentEncoder:
 
     def create_quantum_circuit(self, causal_state, input_val):
         '''Create a quantum circuit representing the evolution of the quantum agent
-        for particular memory and input states
+        for particular memory and input states.  Returns a qiskit.QuantumCircuit.
         '''
 
         input_state = self.input_state_map[input_val]
@@ -447,16 +459,11 @@ class QuantumAgentEncoder:
         if self.unitary is None:
             raise RuntimeError('You must encode the agent before a quantum circuit can be created')
 
-        n_qubits = sum(
-            [
-                self.n_qubits_memory_tape,
-                self.n_qubits_input_tape,
-                self.n_qubits_output_tape,
-                self.n_qubits_junk_tape,
-            ]
+        n_qubits = (
+            self.n_qubits_memory_tape + self.n_qubits_input_tape + self.n_qubits_output_tape + self.n_qubits_junk_tape
         )
 
-        qc = QuantumCircuit(n_qubits)  # , self.n_qubits_output_tape)
+        qc = QuantumCircuit(n_qubits)
 
         # Initialize the circuit in the initial state and apply the unitary operator
         initial_state = multi_kron(
@@ -468,12 +475,23 @@ class QuantumAgentEncoder:
         qc.initialize(Statevector(initial_state))
         qc.append(UnitaryGate(self.unitary), range(n_qubits))
 
-        # # Measure the output tape
-        # # Qiskit's backwards qubit ordering means we have to count backwards to get the right index
-        # output_qubit_index = self.n_qubits_junk_tape
-        # qc.measure(
-        #     range(output_qubit_index, output_qubit_index + self.n_qubits_output_tape),
-        #     range(self.n_qubits_output_tape),
-        # )
-
         return qc
+
+    def run_evolution_circuit_manual(self, causal_state, input_val):
+        '''Run the circuit evolution using manual matrix multiplication.  Returns a
+        qiskit.quantum_info.Statevector representing the final state of the circuit.'''
+
+        input_state = self.input_state_map[input_val]
+        memory_state = self.memory_state_map[causal_state]
+
+        if self.unitary is None:
+            raise RuntimeError('You must encode the agent before a quantum circuit can be created')
+
+        initial_state = multi_kron(
+            memory_state,
+            input_state,
+            kron_power(KET_ZERO, self.n_qubits_output_tape),
+            kron_power(KET_ZERO, self.n_qubits_junk_tape),
+        )
+
+        return Statevector(self.unitary @ initial_state)
