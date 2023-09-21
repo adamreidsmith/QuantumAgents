@@ -1,13 +1,11 @@
 '''
 Agents memory:
-    Classical:
-        Position
-        Direction
-    Quantum:
-        Dead or not
-        Sick or not
-        Immune or not
-        Healthy or not
+    Position
+    Direction
+    Dead or not
+    Sick or not
+    Immune or not
+    Healthy or not
 
 Rules:
     - Agents move in a (biased) random walk.
@@ -97,13 +95,13 @@ Update rule:
     - lambda(x, y, s) = y[0]
 '''
 
+import random
 from math import sqrt
 
 import pygame
 import numpy as np
-from qiskit.quantum_info import partial_trace
 
-from agent_encoding import QuantumAgentEncoder
+from constants import *
 
 
 def f_norm2(a):
@@ -115,119 +113,38 @@ def f_c_norm(a):
     return sqrt(sum(aac))
 
 
-def encode_agent(p_lose_immunity=0.1, p_recover=0.05, p_infect=0.9, p_die=0.01, p_reproduce=0.01):
-    def transition_probs(y, x, s):
-        probs = {
-            ('h0', 'h'): {
-                '00': 1.0,
-                '01': 1.0 - p_infect,
-                '10': 1.0 - p_reproduce,
-                '11': (1.0 - p_infect) * (1.0 - p_reproduce),
-            },
-            ('h1', 'h'): {
-                '00': 0.0,
-                '01': 0.0,
-                '10': p_reproduce,
-                '11': (1.0 - p_infect) * p_reproduce,
-            },
-            ('s', 'h'): {
-                '00': 0.0,
-                '01': p_infect,
-                '10': 0.0,
-                '11': p_infect,
-            },
-            ('h0', 'i'): {
-                '00': p_lose_immunity,
-                '01': p_lose_immunity,
-                '10': p_lose_immunity * (1.0 - p_reproduce),
-                '11': p_lose_immunity * (1.0 - p_reproduce),
-            },
-            ('h1', 'i'): {
-                '00': 0.0,
-                '01': 0.0,
-                '10': p_lose_immunity * p_reproduce,
-                '11': p_lose_immunity * p_reproduce,
-            },
-            ('i0', 'i'): {
-                '00': 1.0 - p_lose_immunity,
-                '01': 1.0 - p_lose_immunity,
-                '10': (1.0 - p_lose_immunity) * (1.0 - p_reproduce),
-                '11': (1.0 - p_lose_immunity) * (1.0 - p_reproduce),
-            },
-            ('i1', 'i'): {
-                '00': 0.0,
-                '01': 0.0,
-                '10': (1.0 - p_lose_immunity) * p_reproduce,
-                '11': (1.0 - p_lose_immunity) * p_reproduce,
-            },
-            ('i0', 's'): p_recover,
-            ('d', 's'): p_die,
-            ('s', 's'): 1.0 - p_recover - p_die,
-            ('d', 'd'): 1.0,
-        }
-
-        if (y, s) in probs:
-            return p[x] if isinstance(p := probs[(y, s)], dict) else p
-        return 0
-
-    def update_rule(x, y, s):
-        '''Given the input, output, and causal state, returns the new causal state.'''
-        return y[0]
-
-    inputs = ['00', '01', '10', '11']
-    outputs = ['h0', 'h1', 'i0', 'i1', 's', 'd']
-    causal_states = ['h', 'i', 's', 'd']
-
-    input_encodings = QuantumAgentEncoder.encode_vals(list(range(len(inputs))))
-    output_encodings = QuantumAgentEncoder.encode_vals(list(range(len(outputs))))
-
-    encoder = QuantumAgentEncoder(
-        causal_states=causal_states,
-        inputs=inputs,
-        outputs=outputs,
-        transition_probs=transition_probs,
-        update_rule=update_rule,
-        input_encodings=input_encodings,
-        output_encodings=output_encodings,
-        numerical=False,
-        verbose=False,
-    )
-    encoder.encode()
-
-    return encoder
-
-
 class Agent:
-    def __init__(self, encoder: QuantumAgentEncoder, world_size: int, step_size: float, sick: bool = False):
+    def __init__(self, world_size: int, step_size: float, probabilities: dict, sick: bool = False):
         '''
         Parameters
         ----------
-        encoder : QuantumAgentEncoder
-            Instance of the QuantumAgentEncoder class in which the agent has been encoded.
         world_size : int
             Size of the simulation grid.
         step_size : float
             Distance the agent moves on each step.
+        probabilities : dict
+            Dictionary of probabilities, keyed by strings 'p_reproduce', 'p_die', 
+            'p_infect', 'p_lose_immunity', and 'p_recover'.
         sick : bool
             Whether or not the agent is sick. Default: False
         '''
 
         self.world_size = world_size
         self.step_size = step_size
-        self.encoder = encoder
+        self.p = probabilities
 
         # Initial position of the agent
         self.position = np.random.rand(2) * self.world_size
 
         # Agent travels with a biased random walk
-        theta = 2 * np.pi * np.random.rand()
+        theta = 2 * np.pi * random.random()
         self.direction = np.array([[np.cos(theta)], [np.sin(theta)]])
 
         # Quantum parameters
-        self.memory_state = 's' if sick else 'h'
+        self.state = 's' if sick else 'h'
 
     def move(self):
-        '''Move agent in a biased random walk.'''
+        '''Move the agent in a biased random walk.'''
 
         # Update the direction by rotating the current direction by a random angle between -pi/8 and pi/8
         theta = (np.random.rand() - 0.5) * np.pi / 4
@@ -240,34 +157,55 @@ class Agent:
         self.position += self.direction.reshape(2) * self.step_size
         self.position %= self.world_size
 
-    def update_quantum(self, input_state: str):
-        sv = self.encoder.run_evolution_circuit_manual(self.memory_state, input_state)
+    def update_state(self, input_state: str):
+        q = random.random()
+        match self.state:
+            case 'h':
+                match input_state:
+                    case '00':
+                        output_state = 'h0'
+                    case '01':
+                        output_state = 's' if q < self.p['p_infect'] else 'h0'
+                    case '10':
+                        output_state = 'h1' if q < self.p['p_reproduce'] else 'h0'
+                    case '11':
+                        if q < self.p['p_infect']:
+                            output_state = 's'
+                        elif q > 1 - (1 - self.p['p_infect']) * self.p['p_reproduce']:
+                            output_state = 'h1'
+                        else:
+                            output_state = 'h0'
+            case 'i':
+                match input_state:
+                    case '00' | '01':
+                        output_state = 'h0' if q < self.p['p_lose_immunity'] else 'i0'
+                    case '10' | '11':
+                        p1 = self.p['p_lose_immunity'] * (1 - self.p['p_reproduce'])
+                        p2 = self.p['p_lose_immunity'] * self.p['p_reproduce']
+                        p3 = (1 - self.p['p_lose_immunity']) * self.p['p_reproduce']
+                        if q < p1:
+                            output_state = 'h0'
+                        elif q < p1 + p2:
+                            output_state = 'h1'
+                        elif q < p1 + p2 + p3:
+                            output_state = 'i1'
+                        else:
+                            output_state = 'i0'
+            case 's':
+                if q < self.p['p_recover']:
+                    output_state = 'i0'
+                elif q > 1 - self.p['p_die']:
+                    output_state = 'd'
+                else:
+                    output_state = 's'
+            case 'd':
+                output_state = 'd'
 
-        # Measure the output state
-        outcome, post_measurement_state = sv.measure([2, 3, 4])
-        output_state = self.encoder.outputs[int(outcome, base=2)]
-
-        # Trace out the junk, output, and input states to obtain the new memory state
-        quantum_memory_state = np.asarray(partial_trace(post_measurement_state, range(7)).to_statevector()).reshape(
-            4, 1
-        )
-
-        # Make sure the new memory state agrees with the update rule
-        assert np.allclose(
-            quantum_memory_state,
-            self.encoder.memory_state_map[self.encoder.update_rule(input_state, output_state, self.memory_state)],
-        )
-
-        # Get the value corresponding to the new memory state
-        self.memory_state = min(
-            self.encoder.memory_state_map.keys(),
-            key=lambda k: f_c_norm(quantum_memory_state - self.encoder.memory_state_map[k]),
-        )
-
+        self.state = output_state[0]
         return output_state
 
-    def update(self, quantum_input: str):
-        output_state = self.update_quantum(quantum_input)
+    def update(self, input_val: str):
+        output_state = self.update_state(input_val)
         self.move()
         return output_state
 
@@ -327,12 +265,16 @@ class Simulation:
         self.max_agents = max_agents
         self.infection_radius = infection_radius
 
-        self.encoder = encode_agent(p_lose_immunity, p_recover, p_infect, p_die, p_reproduce)
-
-        self.agents = {Agent(self.encoder, self.world_size, self.step_size, sick=True) for _ in range(n_sick)}
-        self.agents |= {
-            Agent(self.encoder, self.world_size, self.step_size, sick=False) for _ in range(n_agents - n_sick)
+        self.p = {
+            'p_lose_immunity': p_lose_immunity,
+            'p_recover': p_recover,
+            'p_infect': p_infect,
+            'p_die': p_die,
+            'p_reproduce': p_reproduce,
         }
+
+        self.agents = {Agent(self.world_size, self.step_size, self.p, sick=True) for _ in range(n_sick)}
+        self.agents |= {Agent(self.world_size, self.step_size, self.p, sick=False) for _ in range(n_agents - n_sick)}
 
         self.n_dead = self.n_born = 0
 
@@ -348,11 +290,11 @@ class Simulation:
         }
 
     def step(self):
-        # n**2 algorithm, but should be fast enough for this application (bottleneck is the quantum simulation)
+        # n**2 algorithm, but should be fast enough for this application
         computed_dists = {}
         agents_born = set()
         for agent in self.agents:
-            if agent.memory_state in 'sd':
+            if agent.state in 'sd':
                 # If the agent is sick or dead, it cannot reproduce or be infected
                 output_state = agent.update('00')
                 continue
@@ -369,9 +311,9 @@ class Simulation:
                     computed_dists[(id1, id2)] = dist
 
                 if dist <= self.infection_radius:
-                    if other_agent.memory_state == 's':
+                    if other_agent.state == 's':
                         nearby_sick = True
-                    elif other_agent.memory_state in 'ih':
+                    elif other_agent.state in 'ih':
                         nearby_healthy_immune = True
 
                     if nearby_sick and nearby_healthy_immune:
@@ -383,7 +325,7 @@ class Simulation:
 
             # If the agent reproduces, add a healthy agent to the simulation
             if output_state in ('h1', 'i1') and len(self.agents) + len(agents_born) < self.max_agents:
-                agents_born.add(Agent(self.encoder, self.world_size, self.step_size, sick=False))
+                agents_born.add(Agent(self.world_size, self.step_size, self.p, sick=False))
 
         self.n_born += len(agents_born)
         self.agents |= agents_born
@@ -392,7 +334,7 @@ class Simulation:
         dead = []
         n_sick = n_healthy = n_immune = 0
         for agent in self.agents:
-            match agent.memory_state:
+            match agent.state:
                 case 'd':
                     dead.append(agent)
                     self.n_dead += 1
@@ -439,7 +381,7 @@ class Simulation:
     def draw_agents(self):
         for agent in self.agents:
             self.surface.blit(
-                self.icons[self.encoder.causal_states.index(agent.memory_state)],
+                self.icons[['h', 'i', 's', 'd'].index(agent.state)],
                 dest=agent.position - self.icon_size / 2,
             )
 
@@ -462,5 +404,6 @@ if __name__ == '__main__':
         p_infect=0.90,
         p_die=0.005,
         p_reproduce=0.008,
+        fps=30,
     )
     sim.run()
