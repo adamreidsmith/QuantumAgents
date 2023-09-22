@@ -101,16 +101,21 @@ from math import sqrt
 
 import pygame
 import numpy as np
+import matplotlib.pyplot as plt
 from qiskit.quantum_info import partial_trace
 
 from agent_encoding import QuantumAgentEncoder
 
 
 def f_norm2(a):
+    '''Fast norm for an array of shape (2,)'''
+
     return sqrt(a[0] ** 2 + a[1] ** 2)
 
 
 def f_c_norm(a):
+    '''Fast norm for a complex array of shape (n,)'''
+
     aac = (a * a.conj()).real
     return sqrt(sum(aac))
 
@@ -330,11 +335,12 @@ class Simulation:
         self.encoder = encode_agent(p_lose_immunity, p_recover, p_infect, p_die, p_reproduce)
 
         self.agents = {Agent(self.encoder, self.world_size, self.step_size, sick=True) for _ in range(n_sick)}
-        self.agents |= {
-            Agent(self.encoder, self.world_size, self.step_size, sick=False) for _ in range(n_agents - n_sick)
-        }
+        self.agents.update(
+            {Agent(self.encoder, self.world_size, self.step_size, sick=False) for _ in range(n_agents - n_sick)}
+        )
 
         self.n_dead = self.n_born = 0
+        self.stats = {'total': [], 'healthy': [], 'immune': [], 'sick': [], 'dead': [], 'born': []}
 
         # Visualization attributes
         self.surface = None
@@ -386,7 +392,7 @@ class Simulation:
                 agents_born.add(Agent(self.encoder, self.world_size, self.step_size, sick=False))
 
         self.n_born += len(agents_born)
-        self.agents |= agents_born
+        self.agents.update(agents_born)
 
         # Get the counts of the current agent statuses
         dead = []
@@ -410,6 +416,13 @@ class Simulation:
         print(
             f'Agents: {len(self.agents)} | Healthy: {n_healthy} | Immune: {n_immune} | Sick: {n_sick} | Dead: {self.n_dead} | Born {self.n_born}'
         )
+
+        self.stats['total'].append(len(self.agents))
+        self.stats['healthy'].append(n_healthy)
+        self.stats['immune'].append(n_immune)
+        self.stats['sick'].append(n_sick)
+        self.stats['dead'].append(self.n_dead)
+        self.stats['born'].append(self.n_born)
 
     def run(self):
         self.create_window()
@@ -448,6 +461,21 @@ class Simulation:
         self.draw_agents()
         pygame.display.update()
 
+    def plot_stats(self):
+        plt.figure(figsize=(15, 7))
+
+        plt.plot(self.stats['total'], label='Total', c='b')
+        plt.plot(self.stats['healthy'], label='Healthy', c='g')
+        plt.plot(self.stats['immune'], label='Immune', c='grey')
+        plt.plot(self.stats['sick'], label='Sick', c='r')
+        plt.plot(self.stats['dead'], label='Died', c='m')
+        plt.plot(self.stats['born'], label='Born', c='k')
+        plt.legend()
+        plt.xlabel('Time')
+        plt.ylabel('Number of agents')
+
+        plt.draw()
+
 
 if __name__ == '__main__':
     sim = Simulation(
@@ -464,3 +492,4 @@ if __name__ == '__main__':
         p_reproduce=0.008,
     )
     sim.run()
+    sim.plot_stats()
