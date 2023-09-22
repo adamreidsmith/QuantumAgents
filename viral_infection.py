@@ -408,21 +408,25 @@ class Simulation:
                     n_immune += 1
                 case 'h':
                     n_healthy += 1
+        n_total = len(self.agents)
 
         # Remove dead agents
         for agent in dead:
             self.agents.remove(agent)
 
         print(
-            f'Agents: {len(self.agents)} | Healthy: {n_healthy} | Immune: {n_immune} | Sick: {n_sick} | Dead: {self.n_dead} | Born {self.n_born}'
+            f'Agents: {n_total} | Healthy: {n_healthy} | Immune: {n_immune} | Sick: {n_sick} | Dead: {self.n_dead} | Born {self.n_born}'
         )
 
-        self.stats['total'].append(len(self.agents))
+        self.stats['total'].append(n_total)
         self.stats['healthy'].append(n_healthy)
         self.stats['immune'].append(n_immune)
         self.stats['sick'].append(n_sick)
         self.stats['dead'].append(self.n_dead)
         self.stats['born'].append(self.n_born)
+
+        if n_healthy == n_total:
+            self.close_clicked = True
 
     def run(self):
         self.create_window()
@@ -468,8 +472,8 @@ class Simulation:
         plt.plot(self.stats['healthy'], label='Healthy', c='g')
         plt.plot(self.stats['immune'], label='Immune', c='grey')
         plt.plot(self.stats['sick'], label='Sick', c='r')
-        plt.plot(self.stats['dead'], label='Died', c='m')
-        plt.plot(self.stats['born'], label='Born', c='k')
+        # plt.plot(self.stats['dead'], label='Died', c='m')
+        # plt.plot(self.stats['born'], label='Born', c='k')
         plt.legend()
         plt.xlabel('Time')
         plt.ylabel('Number of agents')
@@ -484,12 +488,12 @@ if __name__ == '__main__':
         n_agents=200,
         n_sick=10,
         max_agents=300,
-        infection_radius=15,
+        infection_radius=12,
         p_lose_immunity=0.05,
-        p_recover=0.015,
-        p_infect=0.90,
+        p_recover=0.02,
+        p_infect=0.65,
         p_die=0.005,
-        p_reproduce=0.008,
+        p_reproduce=0.018,
     )
     sim.run()
     sim.plot_stats()
