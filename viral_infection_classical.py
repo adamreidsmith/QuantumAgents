@@ -233,6 +233,7 @@ class Simulation:
         p_reproduce: float = 0.01,
         fps: int = 0,
         icon_size: int = 20,
+        display: bool = True,
     ):
         '''
         Parameters
@@ -266,12 +267,15 @@ class Simulation:
             Maximum frame rate of the simulation. Set to 0 to run as fast as possible.
         icon_size : int
             The size of the agent icons in the simulation window.
+        display : bool
+            Whether or not to display a visualization of the simulation.
         '''
 
         self.world_size = world_size
         self.step_size = step_size
         self.max_agents = max_agents
         self.infection_radius = infection_radius
+        self.display = display
 
         self.p = {
             'p_lose_immunity': p_lose_immunity,
@@ -377,14 +381,21 @@ class Simulation:
             self.close_clicked = True
 
     def run(self):
-        self.create_window()
-        while not self.close_clicked:  # Until the user closes the window, play a frame
-            if self.fps:
-                pygame.time.Clock().tick(self.fps)  # Set the frame rate to self.fps frames per second
-            self.handle_event()
-            self.step()
-            self.draw()
-        pygame.quit()
+        if self.display:
+            self.create_window()
+            while not self.close_clicked: # Until the user closes the window, play a frame
+                if self.fps:
+                    pygame.time.Clock().tick(self.fps)  # Set the frame rate to self.fps frames per second
+                self.handle_event()
+                self.step()
+                self.draw()
+            pygame.quit()
+        else:
+            try:
+                while True:
+                    self.step()
+            except KeyboardInterrupt:
+                pass
 
     def create_window(self):
         '''Open a window on the display and return its surface.'''
@@ -443,6 +454,7 @@ if __name__ == '__main__':
         p_die=0.005,
         p_reproduce=0.018,
         # fps=30,
+        display=False,
     )
     sim.run()
     sim.plot_stats()
