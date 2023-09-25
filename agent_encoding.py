@@ -97,6 +97,7 @@ class QuantumAgentEncoder:
         self.junk_state_map = None
         self.n_qubits_memory_tape = None
         self.n_qubits_junk_tape = None
+        self.output_junk_zero_state = None
 
     @staticmethod
     def find_valid_solution(solutions):
@@ -404,6 +405,10 @@ class QuantumAgentEncoder:
 
         self.n_qubits_memory_tape = int(np.log2(len(list(memory_states.values())[0])))
         self.n_qubits_junk_tape = int(np.log2(len(list(junk_states.values())[0])))
+        self.output_junk_zero_state = multi_kron(
+            kron_power(KET_ZERO, self.n_qubits_output_tape),
+            kron_power(KET_ZERO, self.n_qubits_junk_tape),
+        )
 
         return memory_states, junk_states
 
@@ -469,8 +474,7 @@ class QuantumAgentEncoder:
         initial_state = multi_kron(
             memory_state,
             input_state,
-            kron_power(KET_ZERO, self.n_qubits_output_tape),
-            kron_power(KET_ZERO, self.n_qubits_junk_tape),
+            self.output_junk_zero_state,
         )
         qc.initialize(Statevector(initial_state))
         qc.append(UnitaryGate(self.unitary), range(n_qubits))
@@ -479,19 +483,13 @@ class QuantumAgentEncoder:
 
     def run_evolution_circuit_manual(self, causal_state, input_val):
         '''Run the circuit evolution using manual matrix multiplication.  Returns a
-        qiskit.quantum_info.Statevector representing the final state of the circuit.'''
-
-        input_state = self.input_state_map[input_val]
-        memory_state = self.memory_state_map[causal_state]
-
-        if self.unitary is None:
-            raise RuntimeError('You must encode the agent before a quantum circuit can be created')
+        qiskit.quantum_info.Statevector representing the final state of the circuit.
+        '''
 
         initial_state = multi_kron(
-            memory_state,
-            input_state,
-            kron_power(KET_ZERO, self.n_qubits_output_tape),
-            kron_power(KET_ZERO, self.n_qubits_junk_tape),
+            self.memory_state_map[causal_state],
+            self.input_state_map[input_val],
+            self.output_junk_zero_state,
         )
 
         return Statevector(self.unitary @ initial_state)

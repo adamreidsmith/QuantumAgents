@@ -96,7 +96,7 @@ Update rule:
 '''
 
 import random
-from math import sqrt
+from math import sqrt, log2
 
 import pygame
 import numpy as np
@@ -234,6 +234,8 @@ class Simulation:
         fps: int = 0,
         icon_size: int = 20,
         display: bool = True,
+        maxit: int = 0,
+        entropy_it: int = 50,
     ):
         '''
         Parameters
@@ -276,6 +278,10 @@ class Simulation:
         self.max_agents = max_agents
         self.infection_radius = infection_radius
         self.display = display
+        self.maxit = maxit
+        self.entropy_it = entropy_it
+        self.n_agents_start = n_agents
+        self.n_sick_start = n_sick
 
         self.p = {
             'p_lose_immunity': p_lose_immunity,
@@ -305,7 +311,13 @@ class Simulation:
             for icon, path in zip([1, 0, 2], ['person_grey.png', 'person_green.png', 'person_red.png'])
         }
 
+        self.causal_state_occurrence = {s: 0 for s in 'hisd'}
+
+        self.it = 0
+
     def step(self):
+        self.it += 1
+
         # n**2 algorithm, but should be fast enough for this application
         computed_dists = {}
         agents_born = set()
@@ -350,6 +362,8 @@ class Simulation:
         dead = []
         n_sick = n_healthy = n_immune = 0
         for agent in self.agents:
+            if self.it > self.entropy_it:
+                self.causal_state_occurrence[agent.state] += 1
             match agent.state:
                 case 'd':
                     dead.append(agent)
@@ -367,7 +381,7 @@ class Simulation:
             self.agents.remove(agent)
 
         print(
-            f'Agents: {n_total} | Healthy: {n_healthy} | Immune: {n_immune} | Sick: {n_sick} | Dead: {self.n_dead} | Born {self.n_born}'
+            f'{self.it} | Agents: {n_total} | Healthy: {n_healthy} | Immune: {n_immune} | Sick: {n_sick} | Dead: {self.n_dead} | Born: {self.n_born}'  # | C = {self.compute_classical_entropy()}'
         )
 
         self.stats['total'].append(n_total)
@@ -377,13 +391,16 @@ class Simulation:
         self.stats['dead'].append(self.n_dead)
         self.stats['born'].append(self.n_born)
 
-        if n_healthy == n_total:
+        if self.maxit and self.it >= self.maxit:
             self.close_clicked = True
+
+        if n_total == n_healthy:
+            self.reset()
 
     def run(self):
         if self.display:
             self.create_window()
-            while not self.close_clicked: # Until the user closes the window, play a frame
+            while not self.close_clicked:  # Until the user closes the window, play a frame
                 if self.fps:
                     pygame.time.Clock().tick(self.fps)  # Set the frame rate to self.fps frames per second
                 self.handle_event()
@@ -391,11 +408,34 @@ class Simulation:
                 self.draw()
             pygame.quit()
         else:
-            try:
-                while True:
-                    self.step()
-            except KeyboardInterrupt:
-                pass
+            # try:
+            #     while not self.close_clicked:
+            #         self.step()
+            # except KeyboardInterrupt:
+            #     pass
+            while not self.close_clicked:
+                self.step()
+        return self.compute_classical_entropy()
+
+    def reset(self):
+        self.__init__(
+            world_size=self.world_size,
+            step_size=self.step_size,
+            n_agents=self.n_agents_start,
+            n_sick=self.n_sick_start,
+            max_agents=self.max_agents,
+            infection_radius=self.infection_radius,
+            p_lose_immunity=self.p['p_lose_immunity'],
+            p_recover=self.p['p_recover'],
+            p_infect=self.p['p_infect'],
+            p_die=self.p['p_die'],
+            p_reproduce=self.p['p_reproduce'],
+            fps=self.fps,
+            icon_size=self.icon_size,
+            display=self.display,
+            maxit=self.maxit,
+            entropy_it=self.entropy_it,
+        )
 
     def create_window(self):
         '''Open a window on the display and return its surface.'''
@@ -439,22 +479,46 @@ class Simulation:
 
         plt.show()
 
+    def compute_classical_entropy(self):
+        total = sum(self.causal_state_occurrence.values())
+        if total == 0:
+            return 0
+        cx = 0
+        for count in self.causal_state_occurrence.values():
+            p = count / total
+            if p > 0:
+                cx -= p * log2(p)
+        return cx
+
 
 if __name__ == '__main__':
-    sim = Simulation(
-        world_size=600,
-        step_size=5,
-        n_agents=200,
-        n_sick=10,
-        max_agents=300,
-        infection_radius=12,
-        p_lose_immunity=0.05,
-        p_recover=0.02,
-        p_infect=0.65,
-        p_die=0.005,
-        p_reproduce=0.018,
-        # fps=30,
-        display=False,
-    )
-    sim.run()
-    sim.plot_stats()
+    trials = 10
+    entropy = []
+    for _ in range(trials):
+        sim = Simulation(
+            world_size=600,
+            step_size=5,
+            n_agents=200,
+            n_sick=10,
+            max_agents=300,
+            infection_radius=12,
+            p_lose_immunity=0.05,
+            p_recover=0.02,
+            p_infect=0.65,
+            p_die=0.005,
+            p_reproduce=0.018,
+            display=False,
+            maxit=20000,
+            entropy_it=2000,
+        )
+        entropy.append(sim.run())
+    print(entropy)
+    print(sum(entropy) / trials)
+
+'''
+[1.3065033030771716, 1.3158801108881146, 1.3275959780639761, 1.3439256930092522, 1.3141329895447997, 1.3114020931256103, 1.3377332685221561, 1.3390316258220576, 1.282623882368068, 1.309782100549223]
+1.3188611044970429
+
+[1.3406125174449266, 1.3377074173561443, 1.309374287015186, 1.3069026045933474, 1.3093179139034843, 1.3285442112401948, 1.3077632414452465, 1.323743343792384, 1.3011134971775882, 1.321687378267038]
+1.318676641223554
+'''

@@ -97,14 +97,16 @@ Update rule:
     - lambda(x, y, s) = y[0]
 '''
 
-from math import sqrt
+from math import sqrt, log
 
 import pygame
 import numpy as np
 import matplotlib.pyplot as plt
 from qiskit.quantum_info import partial_trace
+from scipy.linalg import logm
 
 from agent_encoding import QuantumAgentEncoder
+from constants import *
 
 
 def f_norm2(a):
@@ -118,6 +120,12 @@ def f_c_norm(a):
 
     aac = (a * a.conj()).real
     return sqrt(sum(aac))
+
+
+def log2m(a):
+    '''Base 2 matrix log'''
+
+    return logm(a) * LOG2_INV
 
 
 def encode_agent(p_lose_immunity=0.1, p_recover=0.05, p_infect=0.9, p_die=0.01, p_reproduce=0.01):
@@ -246,6 +254,9 @@ class Agent:
         self.position %= self.world_size
 
     def update_quantum(self, input_state: str):
+        # qc = self.encoder.create_quantum_circuit(self.memory_state, input_state)
+        # sv = Statevector(qc)
+
         sv = self.encoder.run_evolution_circuit_manual(self.memory_state, input_state)
 
         # Measure the output state
@@ -294,6 +305,8 @@ class Simulation:
         fps: int = 0,
         icon_size: int = 20,
         display: bool = True,
+        maxit: int = 0,
+        entropy_it: int = 0,
     ):
         '''
         Parameters
@@ -330,11 +343,24 @@ class Simulation:
         display : bool
             Whether or not to display a visualization of the simulation.
         '''
+
         self.world_size = world_size
         self.step_size = step_size
         self.max_agents = max_agents
         self.infection_radius = infection_radius
         self.display = display
+        self.maxit = maxit
+        self.entropy_it = entropy_it
+        self.n_agents_start = n_agents
+        self.n_sick_start = n_sick
+
+        self.p = {
+            'p_lose_immunity': p_lose_immunity,
+            'p_recover': p_recover,
+            'p_infect': p_infect,
+            'p_die': p_die,
+            'p_reproduce': p_reproduce,
+        }
 
         self.encoder = encode_agent(p_lose_immunity, p_recover, p_infect, p_die, p_reproduce)
 
@@ -357,8 +383,14 @@ class Simulation:
             for icon, path in zip([1, 0, 2], ['person_grey.png', 'person_green.png', 'person_red.png'])
         }
 
+        self.causal_state_occurrence = {s: 0 for s in 'hisd'}
+        self.density_matrices = {key: state @ state.T.conj() for key, state in self.encoder.memory_state_map.items()}
+
+        self.it = 0
+
     def step(self):
-        # n**2 algorithm, but should be fast enough for this application (bottleneck is the quantum simulation)
+        self.it += 1
+        # n**2 algorithm, but should be fast enough for this application
         computed_dists = {}
         agents_born = set()
         for agent in self.agents:
@@ -402,6 +434,8 @@ class Simulation:
         dead = []
         n_sick = n_healthy = n_immune = 0
         for agent in self.agents:
+            if self.it > self.entropy_it:
+                self.causal_state_occurrence[agent.memory_state] += 1
             match agent.memory_state:
                 case 'd':
                     dead.append(agent)
@@ -419,7 +453,7 @@ class Simulation:
             self.agents.remove(agent)
 
         print(
-            f'Agents: {n_total} | Healthy: {n_healthy} | Immune: {n_immune} | Sick: {n_sick} | Dead: {self.n_dead} | Born {self.n_born}'
+            f'{self.it} | Agents: {n_total} | Healthy: {n_healthy} | Immune: {n_immune} | Sick: {n_sick} | Dead: {self.n_dead} | Born: {self.n_born}'  # | C = {self.compute_quantum_entropy()}'
         )
 
         self.stats['total'].append(n_total)
@@ -429,8 +463,11 @@ class Simulation:
         self.stats['dead'].append(self.n_dead)
         self.stats['born'].append(self.n_born)
 
-        if n_healthy == n_total:
+        if self.maxit and self.it >= self.maxit:
             self.close_clicked = True
+
+        if n_total == n_healthy:
+            self.reset()
 
     def run(self):
         if self.display:
@@ -443,11 +480,34 @@ class Simulation:
                 self.draw()
             pygame.quit()
         else:
-            try:
-                while True:
-                    self.step()
-            except KeyboardInterrupt:
-                pass
+            # try:
+            #     while not self.close_clicked:
+            #         self.step()
+            # except KeyboardInterrupt:
+            #     pass
+            while not self.close_clicked:
+                self.step()
+        return self.compute_quantum_entropy()
+
+    def reset(self):
+        self.__init__(
+            world_size=self.world_size,
+            step_size=self.step_size,
+            n_agents=self.n_agents_start,
+            n_sick=self.n_sick_start,
+            max_agents=self.max_agents,
+            infection_radius=self.infection_radius,
+            p_lose_immunity=self.p['p_lose_immunity'],
+            p_recover=self.p['p_recover'],
+            p_infect=self.p['p_infect'],
+            p_die=self.p['p_die'],
+            p_reproduce=self.p['p_reproduce'],
+            fps=self.fps,
+            icon_size=self.icon_size,
+            display=self.display,
+            maxit=self.maxit,
+            entropy_it=self.entropy_it,
+        )
 
     def create_window(self):
         '''Open a window on the display and return its surface.'''
@@ -491,21 +551,42 @@ class Simulation:
 
         plt.show()
 
+    def compute_quantum_entropy(self):
+        total = sum(self.causal_state_occurrence.values())
+        if total == 0:
+            return 0
+        rho = sum(
+            (count / total) * self.density_matrices[state] for state, count in self.causal_state_occurrence.items()
+        )
+        qx = -(rho @ log2m(rho)).trace()
+        return qx.real if isinstance(qx, complex) else qx
+
 
 if __name__ == '__main__':
-    sim = Simulation(
-        world_size=500,
-        step_size=5,
-        n_agents=200,
-        n_sick=10,
-        max_agents=300,
-        infection_radius=12,
-        p_lose_immunity=0.05,
-        p_recover=0.02,
-        p_infect=0.65,
-        p_die=0.005,
-        p_reproduce=0.018,
-        display=False,
-    )
-    sim.run()
-    sim.plot_stats()
+    trials = 10
+    entropy = []
+    for _ in range(trials):
+        sim = Simulation(
+            world_size=600,
+            step_size=5,
+            n_agents=200,
+            n_sick=10,
+            max_agents=300,
+            infection_radius=12,
+            p_lose_immunity=0.05,
+            p_recover=0.02,
+            p_infect=0.65,
+            p_die=0.005,
+            p_reproduce=0.018,
+            display=False,
+            maxit=20000,
+            entropy_it=2000,
+        )
+        entropy.append(sim.run())
+    print(entropy)
+    print(sum(entropy) / trials)
+
+'''
+[1.3497015786467637, 1.3117974982376965, 1.3097558607536834, 1.336923303930429, 1.3175973648065866, 1.3042692060492356, 1.2979978767410683, 1.3062477670449433, 1.298249463385365, 1.2953711842035778]
+1.3127911103799348
+'''
