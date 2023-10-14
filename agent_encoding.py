@@ -1,6 +1,7 @@
 from functools import reduce
 from itertools import product
 from typing import Callable, Any
+
 from sympy import Symbol, solve, nsolve, sqrt as sympy_sqrt
 import numpy as np
 from numpy.linalg import cholesky, eigvals, norm, pinv, matrix_rank
@@ -12,13 +13,13 @@ from qiskit.quantum_info import Statevector
 from constants import *
 
 
-def multi_kron(*v):
+def multi_kron(*v: np.ndarray) -> np.ndarray:
     # Compute the Kronecker product of several vectors
 
     return reduce(np.kron, v)
 
 
-def kron_power(v, n):
+def kron_power(v: np.ndarray, n: int) -> np.ndarray:
     # Take the kronecher product of n copies of v
 
     return reduce(np.kron, [v] * n)
@@ -35,8 +36,7 @@ class QuantumAgentEncoder:
         input_encodings: list[np.ndarray] | None = None,
         output_encodings: list[np.ndarray] | None = None,
         numerical: bool = True,
-        verbose: bool = False,
-    ):
+    ) -> None:
         '''
         Parameters
         ----------
@@ -64,8 +64,6 @@ class QuantumAgentEncoder:
         numerical : bool
             Whether to solve the multivariate polynomials numerically or symbolically.
             Default: True
-        verbose : bool
-            Print progress during encoding.  Default: False
         '''
 
         self.causal_states = causal_states
@@ -75,7 +73,6 @@ class QuantumAgentEncoder:
         self.transition_probs = transition_probs
         self.update_rule = update_rule
         self.numerical = numerical
-        self.verbose = verbose
 
         # Encode the inputs, if necessary
         if input_encodings is None:
@@ -97,10 +94,10 @@ class QuantumAgentEncoder:
         self.junk_state_map = None
         self.n_qubits_memory_tape = None
         self.n_qubits_junk_tape = None
-        self.output_junk_zero_state = None
+        self.initial_state_map = None
 
     @staticmethod
-    def find_valid_solution(solutions):
+    def find_valid_solution(solutions: list[dict[Symbol, float | complex]]) -> dict[Symbol, float | complex]:
         '''Determine which solution of the multivariate polynomial we are looking for'''
 
         for sol in solutions:
@@ -112,7 +109,7 @@ class QuantumAgentEncoder:
         raise ValueError('No valid solution found')
 
     @staticmethod
-    def expand_with_identity(m, d):
+    def expand_with_identity(m: np.ndarray, d: int) -> np.ndarray:
         '''Add identity columns and rows to a square matrix m to expand it to shape (d, d)'''
 
         mshape = m.shape[0]
@@ -125,7 +122,7 @@ class QuantumAgentEncoder:
         return m
 
     @staticmethod
-    def householder_vector(x):
+    def householder_vector(x: np.ndarray) -> np.ndarray:
         '''Generate the Householder vector'''
 
         e1 = np.eye(len(x))[0]
@@ -133,7 +130,7 @@ class QuantumAgentEncoder:
         return v / norm(v)
 
     @staticmethod
-    def householder_reflection(v):
+    def householder_reflection(v: np.ndarray) -> np.ndarray:
         '''Construct the Householder reflection matrix'''
 
         I = np.eye(len(v))
@@ -141,7 +138,7 @@ class QuantumAgentEncoder:
         return I - 2 * vvH
 
     @staticmethod
-    def reconstruct_matrix(x, b):
+    def reconstruct_matrix(x: np.ndarray, b: np.ndarray) -> np.ndarray:
         '''Reconstruct columns of a matrix A from x and b satisfying Ax=b.
         x and b should be matrices with the vectors as columns.
         '''
@@ -161,7 +158,7 @@ class QuantumAgentEncoder:
         return A
 
     @staticmethod
-    def gram_schmidt(vectors, start_index=0):
+    def gram_schmidt(vectors: list[np.ndarray], start_index: int = 0) -> list[np.ndarray]:
         '''Apply the Gram-Schmidt process to orthonormalize the set of vectors'''
 
         proj = lambda v, u: (np.dot(v, u.conj()) / np.dot(u, u.conj())) * u
@@ -187,7 +184,7 @@ class QuantumAgentEncoder:
         return vectors
 
     @classmethod
-    def extend_columns_to_orthonormal_basis(cls, U):
+    def extend_columns_to_orthonormal_basis(cls, U: np.ndarray) -> np.ndarray:
         '''Replace the zero columns of U with non-zero unit vectors such that the columns form an orthonormal basis,
         making U a unitary matrix. The supplied non-zero columns of U must already be orthonormal.
         '''
@@ -237,7 +234,7 @@ class QuantumAgentEncoder:
         return np.column_stack(nonzero_cols_ordered)
 
     @staticmethod
-    def encode_vals(vals: list[int]):
+    def encode_vals(vals: list[int]) -> list[np.ndarray]:
         '''Encode values as quantum states'''
 
         encodings = []
@@ -249,7 +246,7 @@ class QuantumAgentEncoder:
         return encodings
 
     @classmethod
-    def align_first_row(cls, L):
+    def align_first_row(cls, L: np.ndarray) -> np.ndarray:
         '''Align the first row of matrix L with the canonical basis unit vector e1.
         This is done by reflecting the first row of L onto the canonical basis unit
         vector e1 using a Householder reflection.
@@ -277,20 +274,14 @@ class QuantumAgentEncoder:
             return -L
         return L
 
-    def encode(self):
+    def encode(self) -> None:
         '''Encode the agent in the quantum realm'''
 
-        if self.verbose:
-            print('Computing overlaps...')
         input_specialized_overlaps = self.compute_input_specialized_overlaps()
-        if self.verbose:
-            print('Constructing memory/junk states...')
         memory_states, junk_states = self.construct_quantum_memory_junk_states(input_specialized_overlaps)
-        if self.verbose:
-            print('Constructing evolution operator...')
         self.unitary = self.construct_unitary(memory_states, junk_states)
 
-    def compute_input_specialized_overlaps(self):
+    def compute_input_specialized_overlaps(self) -> dict[str, float]:
         '''Step 1'''
 
         # Define the variables of the multivariate polynomial equations
@@ -333,7 +324,9 @@ class QuantumAgentEncoder:
 
         return solution
 
-    def construct_quantum_memory_junk_states(self, input_specialized_overlaps: dict[str, float]):
+    def construct_quantum_memory_junk_states(
+        self, input_specialized_overlaps: dict[str, float]
+    ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
         '''Step 2'''
 
         # Compute the memory state overlaps from the input specialized memory state overlaps
@@ -405,14 +398,23 @@ class QuantumAgentEncoder:
 
         self.n_qubits_memory_tape = int(np.log2(len(list(memory_states.values())[0])))
         self.n_qubits_junk_tape = int(np.log2(len(list(junk_states.values())[0])))
-        self.output_junk_zero_state = multi_kron(
-            kron_power(KET_ZERO, self.n_qubits_output_tape),
-            kron_power(KET_ZERO, self.n_qubits_junk_tape),
-        )
+
+        self.initial_state_map = {}
+        # Compute all possible input_states
+        for s, memory_state in self.memory_state_map.items():
+            for x, input_state in self.input_state_map.items():
+                self.initial_state_map[(s, x)] = multi_kron(
+                    memory_state,
+                    input_state,
+                    kron_power(KET_ZERO, self.n_qubits_output_tape),
+                    kron_power(KET_ZERO, self.n_qubits_junk_tape),
+                )
 
         return memory_states, junk_states
 
-    def construct_unitary(self, memory_states: dict[str, np.ndarray], junk_states: dict[str, np.ndarray]):
+    def construct_unitary(
+        self, memory_states: dict[str, np.ndarray], junk_states: dict[str, np.ndarray]
+    ) -> np.ndarray:
         '''Steps 3 and 4'''
 
         # Compute the initial and final states of the agents unitary transformation
@@ -453,16 +455,10 @@ class QuantumAgentEncoder:
 
         return full_unitary
 
-    def create_quantum_circuit(self, causal_state, input_val):
+    def create_quantum_circuit(self, causal_state: Any, input_val: Any) -> QuantumCircuit:
         '''Create a quantum circuit representing the evolution of the quantum agent
         for particular memory and input states.  Returns a qiskit.QuantumCircuit.
         '''
-
-        input_state = self.input_state_map[input_val]
-        memory_state = self.memory_state_map[causal_state]
-
-        if self.unitary is None:
-            raise RuntimeError('You must encode the agent before a quantum circuit can be created')
 
         n_qubits = (
             self.n_qubits_memory_tape + self.n_qubits_input_tape + self.n_qubits_output_tape + self.n_qubits_junk_tape
@@ -471,25 +467,15 @@ class QuantumAgentEncoder:
         qc = QuantumCircuit(n_qubits)
 
         # Initialize the circuit in the initial state and apply the unitary operator
-        initial_state = multi_kron(
-            memory_state,
-            input_state,
-            self.output_junk_zero_state,
-        )
+        initial_state = self.initial_state_map[(causal_state, input_val)]
         qc.initialize(Statevector(initial_state))
         qc.append(UnitaryGate(self.unitary), range(n_qubits))
 
         return qc
 
-    def run_evolution_circuit_manual(self, causal_state, input_val):
+    def run_evolution_circuit_manual(self, causal_state: Any, input_val: Any) -> Statevector:
         '''Run the circuit evolution using manual matrix multiplication.  Returns a
         qiskit.quantum_info.Statevector representing the final state of the circuit.
         '''
 
-        initial_state = multi_kron(
-            self.memory_state_map[causal_state],
-            self.input_state_map[input_val],
-            self.output_junk_zero_state,
-        )
-
-        return Statevector(self.unitary @ initial_state)
+        return Statevector(self.unitary @ self.initial_state_map[(causal_state, input_val)])

@@ -15,3 +15,6 @@ M0 = np.array([[1.0, 0.0], [0.0, 0.0]])
 M0.setflags(write=False)
 M1 = np.array([[0.0, 0.0], [0.0, 1.0]])
 M1.setflags(write=False)
+
+QUANTUM = 'quantum'
+CLASSICAL = 'classical'

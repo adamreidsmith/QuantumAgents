@@ -317,7 +317,6 @@ class Simulation:
 
     def step(self):
         self.it += 1
-
         # n**2 algorithm, but should be fast enough for this application
         computed_dists = {}
         agents_born = set()
@@ -394,7 +393,7 @@ class Simulation:
         if self.maxit and self.it >= self.maxit:
             self.close_clicked = True
 
-        if n_total == n_healthy:
+        if n_total == n_healthy and not self.display:
             self.reset()
 
     def run(self):
@@ -460,9 +459,10 @@ class Simulation:
             )
 
     def draw(self):
-        self.surface.fill(self.bg_colour)
-        self.draw_agents()
-        pygame.display.update()
+        if self.surface:
+            self.surface.fill(self.bg_colour)
+            self.draw_agents()
+            pygame.display.update()
 
     def plot_stats(self):
         plt.figure(figsize=(15, 7))
@@ -492,28 +492,67 @@ class Simulation:
 
 
 if __name__ == '__main__':
-    trials = 10
-    entropy = []
-    for _ in range(trials):
-        sim = Simulation(
-            world_size=600,
-            step_size=5,
-            n_agents=200,
-            n_sick=10,
-            max_agents=300,
-            infection_radius=12,
-            p_lose_immunity=0.05,
-            p_recover=0.02,
-            p_infect=0.65,
-            p_die=0.005,
-            p_reproduce=0.018,
-            display=False,
-            maxit=20000,
-            entropy_it=2000,
-        )
-        entropy.append(sim.run())
-    print(entropy)
-    print(sum(entropy) / trials)
+    # trials = 10
+    # entropy = []
+    # for _ in range(trials):
+    #     sim = Simulation(
+    #         world_size=600,
+    #         step_size=5,
+    #         n_agents=200,
+    #         n_sick=10,
+    #         max_agents=300,
+    #         infection_radius=12,
+    #         p_lose_immunity=0.05,
+    #         p_recover=0.02,
+    #         p_infect=0.65,
+    #         p_die=0.005,
+    #         p_reproduce=0.018,
+    #         display=False,
+    #         maxit=20000,
+    #         entropy_it=2000,
+    #     )
+    #     entropy.append(sim.run())
+    #     print(entropy)
+    #     print(sum(entropy) / len(entropy))
+
+    # sim = Simulation(
+    #     world_size=400,
+    #     step_size=5,
+    #     n_agents=200,
+    #     n_sick=20,
+    #     max_agents=1000,
+    #     infection_radius=20,
+    #     p_lose_immunity=0.3,
+    #     p_recover=0.3,
+    #     p_infect=0.7,
+    #     p_die=0.3,
+    #     p_reproduce=0.15,
+    #     display=False,
+    #     maxit=1000,
+    #     entropy_it=50,
+    # )
+    # # 1.8060416647664803
+
+    sim = Simulation(
+        world_size=400,
+        step_size=5,
+        n_agents=1000,
+        n_sick=100,
+        max_agents=10000,
+        infection_radius=25,
+        p_lose_immunity=0.35,
+        p_recover=0.5,
+        p_infect=0.6,
+        p_die=0.5,
+        p_reproduce=0.12,
+        display=False,
+        maxit=1000,
+        entropy_it=50,
+    )
+
+    sim.run()
+    sim.plot_stats()
+    print(sim.compute_classical_entropy())
 
 '''
 [1.3065033030771716, 1.3158801108881146, 1.3275959780639761, 1.3439256930092522, 1.3141329895447997, 1.3114020931256103, 1.3377332685221561, 1.3390316258220576, 1.282623882368068, 1.309782100549223]
