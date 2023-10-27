@@ -1,4 +1,7 @@
-sympy_test.py
-__pycache__
-viral_infection_no_reproduction.py
-viral_infection_classical.py
+*
+!icons
+!.gitignore
+!README.md
+!viral_infection.py
+!actively_perturbed_coin.py
+!agent_encoding.py

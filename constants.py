@@ -9,12 +9,7 @@ KET_ONE.setflags(write=False)
 
 LOG2_INV = 1.0 / np.log(2.0)
 
-I2 = np.eye(2)
-I2.setflags(write=False)
-M0 = np.array([[1.0, 0.0], [0.0, 0.0]])
-M0.setflags(write=False)
-M1 = np.array([[0.0, 0.0], [0.0, 1.0]])
-M1.setflags(write=False)
+PI_ON_4 = np.pi / 4
 
 QUANTUM = 'quantum'
 CLASSICAL = 'classical'
