@@ -1,5 +1,7 @@
 *
+!icons
 !icons/**
+!figs
 !figs/**
 !.gitignore
 !README.md
