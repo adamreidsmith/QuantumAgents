@@ -1,8 +1,8 @@
 *
-!icons
+!icons/**
+!figs/**
 !.gitignore
 !README.md
 !viral_infection.py
 !actively_perturbed_coin.py
 !agent_encoding.py
-!figs
