@@ -1,12 +1,8 @@
-*
-!icons
-!icons/**
-!figs
-!figs/**
-!.gitignore
-!README.md
-!viral_infection.py
-!actively_perturbed_coin.py
-!agent_encoding.py
+__pycache__
+.DS_Store
 
-**/.DS_Store
+sympy_test.py
+viral_infection_classical.py
+viral_infection_n_squared.py
+viral_infection_no_reproduction.py
+viral_infection_optuna.py
