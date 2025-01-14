@@ -83,7 +83,12 @@ The traffic intersection model implementation demonstrates significant memory co
 - 32.4% improvement for lanes 1 & 4
 - 40.5% improvement for lanes 2 & 5
 - 20.3% improvement for lanes 3 & 6
+
 The viral infection model shows minimal quantum advantage (approximately 0.0015%) due to the near-orthogonality of its memory states.
+
+## License
+
+[MIT](./LICENSE)
 
 ## References
 
