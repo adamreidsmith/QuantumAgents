@@ -1,15 +1,40 @@
-# Quantum Agents
+# Quantum Agent-Based Modeling (QABM)
 
-This repository contains implementations of agent-based modelling simulations using quantum agents as described [here](https://arxiv.org/abs/2108.10876).  Quantum agents exploit quantum mechanical phenomena to achieve superior memory efficiency over their classical counterparts.
+This repository contains implementations of agent-based modelling simulations using the quantum agents proposed in [1].  Quantum agents exploit quantum mechanical phenomena to achieve superior entropic memory efficiency over their classical counterparts.
 
-## Actively Perturbed Coin
+## Overview
+The project implements three main quantum agent-based models:
 
-In [actively_perturbed_coin.py](https://github.com/adamreidsmith/QuantumAgents/blob/master/actively_perturbed_coin.py), we present a simple example, an [actively perturbed coin](https://www.nature.com/articles/s41534-016-0001-3), to illustrate the memory advantage provided by the quantum framework. The agent represents a single coin with states 0 and 1, receiving a binary input $`x\in\{0,1\}`$ at each time step. In response, the agent flips the coin with probability $p$ if $x=1$ and with probability $q$ if $x=0$, where $`0 \lt p,q \lt 1`$. The agent then outputs the new state $`y\in\{0,1\}`$ of the coin.
+1. **Actively Perturbed Coin**: A simple example described in [2] to illustrate the memory advantage provided by the quantum framework.  The agent represents a single coin with states 0 and 1, receiving a binary input $`x\in\{0,1\}`$ at each time step. In response, the agent flips the coin with probability $p$ if $x=1$ and with probability $q$ if $x=0$, where $`0 \lt p,q \lt 1`$. The agent then outputs the new state $`y\in\{0,1\}`$ of the coin.
+2. **Viral Infection Model**: Simulates the spread and perpetuation of a viral infection (specifically, the Ebola virus) in a closed population with agents that can be in one of four states: sick, immune, healthy, or dead. The model is based on [this](http://www.netlogoweb.org/launch#http://www.netlogoweb.org/assets/modelslib/Sample%20Models/Biology/Virus.nlogo) model from [NetLogo](https://ccl.northwestern.edu/netlogo/) and includes mechanisms for infection spread, recovery, death, immunity loss, and reproduction.
+3. **Traffic Intersection Model**: Simulates a six-lane traffic intersection with quantum-encoded lane agents and a classical traffic light control system. The model handles vehicle queuing, traffic light timing, and vehicle flow through the intersection.
 
-## Viral Infection
 
-In [viral_infection.py](viral_infection.py), we develop a viral infection model inspired by the NetLogo virus model found [here](http://www.netlogoweb.org/launch#http://www.netlogoweb.org/assets/modelslib/Sample%20Models/Biology/Virus.nlogo).  The agents interact in a closed environment to simulate the spread and perpetuation of the Ebola virus disease using parameters from the [2014 Ebola virus outbreak](https://en.wikipedia.org/wiki/Western_African_Ebola_virus_epidemic) in West Africa.  A classical ABM model was produced alongside the quantum model for comparison, and the two simulations were found to produce the same statistics.  A 100-year simulation was conducted and the health status of the population is shown in the plot below.
+<picture>
+  <source srcset="figs/intersection.png" media="(max-width: 100px)" />
+  <img src="figs/intersection.png" alt="intersection" />
+</picture>
 
-![Ebola virus simulation statistics](figs/ebola_classical.png)
+## Features
 
-The entropy of the agents' memory system in the quantum simulation ($`Q_X=0.89 \pm 0.07`$) was found to be negligibly lower than in the classical case ($`C_X=0.92 \pm 0.06`$).  This is due to the magnitdues of the transition probabilities of the model.  Due to the nature of the Ebola virus, the simulation is not conducive to a high memory compression from the quantum model.  To achieve better memory compression, we may adjust the parameters defining the transition probabilities of the model.  This yields entropies of $`Q_X=1.320 \pm 0.002`$ and $`C_X=1.450 \pm 0.003`$ for the quantum and classical models, respectively, but no longer represents a realistic simulation of the Ebola virus.
+- Quantum encoding of agent states using minimal memory requirements
+- Hybrid quantum-classical approach for position-based simulations
+- Efficient spatial querying using k-d trees for the viral infection model
+- Probabilistic vehicle arrival and departure modeling for the traffic simulation
+- Analysis tools for computing quantum and classical entropy metrics
+- Visualization capabilities for simulation results
+
+## Results
+
+The implementation demonstrates significant memory compression for the traffic intersection model:
+- 32.4% improvement for lanes 1 & 4
+- 40.5% improvement for lanes 2 & 5
+- 20.3% improvement for lanes 3 & 6
+
+The viral infection model shows minimal quantum advantage due to the near-orthogonality of its memory states.
+
+## References
+
+[1] Thomas J. Elliott, Mile Gu, Andrew J. P. Garner, and Jayne Thompson. Quantum Adaptive Agents with Efficient Long-Term Memories. Phys. Rev. X, 12:011007, Jan 2022.
+
+[2] Jayne Thompson, Andrew J. P. Garner, Vlatko Vedral, and Mile Gu. Using Quantum Theory to Simplify Input–Output Processes. npj Quantum Information, 3(1):6, Feb 2017.
