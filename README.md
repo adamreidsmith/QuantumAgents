@@ -27,6 +27,12 @@ The project implements three main quantum agent-based models:
 
 ## Model Parameters
 
+### Actively Perturbed Coin Model
+| Parameter | Description | Default Value |
+| --------- | ----------- | ------------- | 
+| $p$ | Coin flip probability when $x=1$ | $0.8$ |
+| $q$ | Coin flip probability when $x=0$ | $0.35$ |
+
 ### Viral Infection Model
 | Parameter | Description | Default Value |
 | --------- | ----------- | ------------- | 
@@ -36,6 +42,14 @@ The project implements three main quantum agent-based models:
 | $p_{infect}$ | Probability of infection on contact | $0.8$ |
 | $`p_{random\_infect}`$ | Daily probability of random infection | $`5.5\cdot 10 ^{-6}`$ |
 | $p_{reproduce}$ | Daily probability of reproduction | $0.0003$ |
+
+### Intersection Model
+| Parameter | Description | Default Value |
+| --------- | ----------- | ------------- | 
+| Lane capacity | Maximum vehicles per lane | $30$
+| Light Durations | Available green light durations | $[8,11,14,17,20]$ |
+| Arrival Rates | Vehicle arrival rates per lane | $[6,8,4,6,8,4]$ | 
+| Departure Std. | Standard deviation of departure distribution | $2$ |
 
 ## Results
 
