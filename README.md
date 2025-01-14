@@ -32,7 +32,7 @@ The project implements three main quantum agent-based models:
 | --------- | ----------- | ------------- | 
 | $p_{recover}$ | Daily probability of recovery | 0.05 |
 | $p_{die}$ | Daily probability of death for infected | 0.05 |
-| $p_{lose\_immunity}$ | Daily probability of losing immunity | 0.00027 |
+| $`p_{lose\_immunity}`$ | Daily probability of losing immunity | 0.00027 |
 
 p_infectProbability of infection on contact0.8p_random_infectDaily probability of random infection5.5e-6p_reproduceDaily probability of reproduction0.0003
 
