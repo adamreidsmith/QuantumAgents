@@ -10,14 +10,14 @@ Agents memory:
         Healthy or not
 
 Rules:
-    - Agents move in a (biased) random walk.
+    - Agents move in a biased random walk.
     - Agents can either be dead, sick, immune, or healthy, but not a combination of those.
-    - When sick, agents recover with probability p_recover, or die with probability p_die.
+    - When sick, agents recover with probability `p_recover`, or die with probability `p_die`.
     - When an agent recovers, it becomes immune or healthy with equal probability.
-    - When immune, agents lose their immunity with probability p_lose_immunity.
-    - When healthy agents are nearby sick agents, they become sick with probability p_infect.
-    - Healthy agents may randomly contract the infection with probability p_random_infect.
-    - When healthy/immune agents are nearby other healthy/immune agents, they reproduce with probability p_reproduce.
+    - When immune, agents lose their immunity with probability `p_lose_immunity`.
+    - When healthy agents are nearby sick agents, they become sick with probability `p_infect`.
+    - Healthy agents may randomly contract the infection with probability `p_random_infect`.
+    - When healthy/immune agents are nearby other healthy/immune agents, they reproduce with probability `p_reproduce`.
     - Dead agents are removed from the simulation.
 
 Notations:
@@ -102,8 +102,8 @@ Transition probabilities:
     All others are zero.
 
 Update rule:
-    - The output with {h0, h1} -> h and {i0, i1} -> i is the new causal state.
-    - lambda(x, y, s) = y[0]
+    - The output (where {h0, h1} -> h and {i0, i1} -> i) is the new causal state.
+    - That is, `update_rule(x, y, s) = y[0]`
 '''
 
 from math import sqrt, log2
@@ -117,24 +117,24 @@ from qiskit.quantum_info import partial_trace
 from scipy.linalg import logm
 from scipy.spatial import KDTree
 
-from agent_encoding import QuantumAgentEncoder
+from agent_encoding_sparse import QuantumAgentEncoder
 from constants import *
 
 
 def f_sq_norm2(a):
-    '''Fast square norm for an array of shape (2,)'''
+    '''Fast square norm for an array of shape (2,).'''
 
     return a[0] ** 2 + a[1] ** 2
 
 
 def f_norm2(a):
-    '''Fast norm for an array of shape (2,)'''
+    '''Fast norm for an array of shape (2,).'''
 
     return sqrt(f_sq_norm2(a))
 
 
 def f_c_norm41(a):
-    '''Fast norm for a complex array of shape (4,1)'''
+    '''Fast norm for a complex array of shape (4,1).'''
 
     ac = a.conj()
     return sqrt(
@@ -143,7 +143,7 @@ def f_c_norm41(a):
 
 
 def log2m(a):
-    '''Base 2 matrix log'''
+    '''Base 2 matrix log.'''
 
     return logm(a) * LOG2_INV
 
@@ -156,68 +156,63 @@ def encode_agent(
     p_reproduce: float = 0.01,
     p_random_infect: float = 0.0001,
 ) -> QuantumAgentEncoder:
-    def transition_probs(y, x, s):
-        '''Transition probabilities where sick agents go immune or get healthy with equal probability'''
-        probs = {
-            ('h0', 'h'): {
-                '00': 1.0 - p_random_infect,
-                '01': (1.0 - p_infect) * (1.0 - p_random_infect),
-                '10': (1.0 - p_reproduce) * (1.0 - p_random_infect),
-                '11': (1.0 - p_infect) * (1.0 - p_reproduce) * (1.0 - p_random_infect),
-            },
-            ('h1', 'h'): {
-                '00': 0.0,
-                '01': 0.0,
-                '10': p_reproduce * (1.0 - p_random_infect),
-                '11': p_reproduce * (1.0 - p_random_infect) * (1.0 - p_infect),
-            },
-            ('s', 'h'): {
-                '00': p_random_infect,
-                '01': p_infect * (1.0 - p_random_infect)
-                + (1.0 - p_infect) * p_random_infect
-                + p_infect * p_random_infect,
-                '10': p_random_infect,
-                '11': p_infect * (1.0 - p_random_infect)
-                + (1.0 - p_infect) * p_random_infect
-                + p_infect * p_random_infect,
-            },
-            ('h0', 'i'): {
-                '00': p_lose_immunity,
-                '01': p_lose_immunity,
-                '10': p_lose_immunity * (1.0 - p_reproduce),
-                '11': p_lose_immunity * (1.0 - p_reproduce),
-            },
-            ('h1', 'i'): {
-                '00': 0.0,
-                '01': 0.0,
-                '10': p_lose_immunity * p_reproduce,
-                '11': p_lose_immunity * p_reproduce,
-            },
-            ('i0', 'i'): {
-                '00': 1.0 - p_lose_immunity,
-                '01': 1.0 - p_lose_immunity,
-                '10': (1.0 - p_lose_immunity) * (1.0 - p_reproduce),
-                '11': (1.0 - p_lose_immunity) * (1.0 - p_reproduce),
-            },
-            ('i1', 'i'): {
-                '00': 0.0,
-                '01': 0.0,
-                '10': (1.0 - p_lose_immunity) * p_reproduce,
-                '11': (1.0 - p_lose_immunity) * p_reproduce,
-            },
-            ('h0', 's'): p_recover * 0.5,
-            ('i0', 's'): p_recover * 0.5,
-            ('d', 's'): p_die,
-            ('s', 's'): 1.0 - p_recover - p_die,
-            ('d', 'd'): 1.0,
-        }
+    t_probs = {
+        ('h0', 'h'): {
+            '00': 1.0 - p_random_infect,
+            '01': (1.0 - p_infect) * (1.0 - p_random_infect),
+            '10': (1.0 - p_reproduce) * (1.0 - p_random_infect),
+            '11': (1.0 - p_infect) * (1.0 - p_reproduce) * (1.0 - p_random_infect),
+        },
+        ('h1', 'h'): {
+            '00': 0.0,
+            '01': 0.0,
+            '10': p_reproduce * (1.0 - p_random_infect),
+            '11': p_reproduce * (1.0 - p_random_infect) * (1.0 - p_infect),
+        },
+        ('s', 'h'): {
+            '00': p_random_infect,
+            '01': p_infect * (1.0 - p_random_infect) + (1.0 - p_infect) * p_random_infect + p_infect * p_random_infect,
+            '10': p_random_infect,
+            '11': p_infect * (1.0 - p_random_infect) + (1.0 - p_infect) * p_random_infect + p_infect * p_random_infect,
+        },
+        ('h0', 'i'): {
+            '00': p_lose_immunity,
+            '01': p_lose_immunity,
+            '10': p_lose_immunity * (1.0 - p_reproduce),
+            '11': p_lose_immunity * (1.0 - p_reproduce),
+        },
+        ('h1', 'i'): {
+            '00': 0.0,
+            '01': 0.0,
+            '10': p_lose_immunity * p_reproduce,
+            '11': p_lose_immunity * p_reproduce,
+        },
+        ('i0', 'i'): {
+            '00': 1.0 - p_lose_immunity,
+            '01': 1.0 - p_lose_immunity,
+            '10': (1.0 - p_lose_immunity) * (1.0 - p_reproduce),
+            '11': (1.0 - p_lose_immunity) * (1.0 - p_reproduce),
+        },
+        ('i1', 'i'): {
+            '00': 0.0,
+            '01': 0.0,
+            '10': (1.0 - p_lose_immunity) * p_reproduce,
+            '11': (1.0 - p_lose_immunity) * p_reproduce,
+        },
+        ('h0', 's'): p_recover * 0.5,
+        ('i0', 's'): p_recover * 0.5,
+        ('d', 's'): p_die,
+        ('s', 's'): 1.0 - p_recover - p_die,
+        ('d', 'd'): 1.0,
+    }
 
-        if (y, s) in probs:
-            return p[x] if isinstance(p := probs[(y, s)], dict) else p
-        return 0
+    def transition_probs(y, x, s):
+        '''Given the input `x` and causal state `s`, returns the probability of emmiting output `y`.'''
+
+        return p[x] if isinstance(p := t_probs.get((y, s), 0), dict) else p
 
     def update_rule(x, y, s):
-        '''Given the input, output, and causal state, returns the new causal state'''
+        '''Given the input, output, and causal state, returns the new causal state.'''
 
         return y[0]
 
@@ -225,18 +220,16 @@ def encode_agent(
     outputs = ['h0', 'h1', 'i0', 'i1', 's', 'd']
     causal_states = ['h', 'i', 's', 'd']
 
-    input_encodings = QuantumAgentEncoder.encode_vals(list(range(len(inputs))))
-    output_encodings = QuantumAgentEncoder.encode_vals(list(range(len(outputs))))
-
     encoder = QuantumAgentEncoder(
         causal_states=causal_states,
         inputs=inputs,
         outputs=outputs,
         transition_probs=transition_probs,
         update_rule=update_rule,
-        input_encodings=input_encodings,
-        output_encodings=output_encodings,
-        numerical=False,
+        method='broyden',
+        initialize_jacobian=True,
+        tol=1e-11,
+        compute_full_unitary=True,
     )
     encoder.encode()
 
@@ -251,7 +244,7 @@ class Agent:
         probabilities: dict[str, float],
         encoder: QuantumAgentEncoder | None = None,
         sick: bool = False,
-        mode: str = 'quantum',
+        mode: str = QUANTUM,
     ):
         '''
         Parameters
@@ -261,8 +254,8 @@ class Agent:
         step_size : float
             Distance the agent moves on each step.
         probabilities : dict[str, float]
-            Dictionary of probabilities, keyed by strings 'p_reproduce', 'p_die',
-            'p_infect', 'p_lose_immunity', 'p_recover', and 'p_random_infect'.
+            Dictionary of probabilities with keys 'p_reproduce', 'p_die', 'p_infect', 'p_lose_immunity',
+            'p_recover', and 'p_random_infect'.
         encoder : QuantumAgentEncoder
             Instance of the QuantumAgentEncoder class in which the agent has been encoded. If set to None,
             the agent must be classical.
@@ -301,7 +294,6 @@ class Agent:
         '''Move agent in a biased random walk'''
 
         # Update the direction by rotating the current direction by a random angle between -pi/8 and pi/8.
-        # Since the position and direction are tuples, we implement the matrix multiplication manually.
         # Working with tuples is uglier, but significantly faster than using numpy arrays.
         theta = (random.random() - 0.5) * PI_ON_4
         ct, st = np.cos(theta), np.sin(theta)
@@ -376,25 +368,24 @@ class Agent:
         self.memory_state = output_state[0]
         return output_state
 
-    def update_quantum(self, input_state: str):
-        '''Update the state of the agent via the quantum circuit'''
+    def update_quantum(self, input_state: str, check_update_rule: bool = False):
+        '''Update the state of the agent via the quantum encoding.'''
 
-        sv = self.encoder.run_evolution_circuit_manual(self.memory_state, input_state)
+        sv = self.encoder.run_compiled_evolution(input_state, self.memory_state)
 
         # Measure the output state
         outcome, post_measurement_state = sv.measure([2, 3, 4])
         output_state = self.encoder.outputs[int(outcome, base=2)]
 
         # Trace out the junk, output, and input states to obtain the new memory state
-        quantum_memory_state = np.asarray(partial_trace(post_measurement_state, range(7)).to_statevector()).reshape(
-            4, 1
-        )
+        quantum_memory_state = partial_trace(post_measurement_state, range(7)).to_statevector()._data.reshape(4, 1)
 
         # Make sure the new memory state agrees with the update rule
-        assert np.allclose(
-            quantum_memory_state,
-            self.encoder.memory_state_map[self.encoder.update_rule(input_state, output_state, self.memory_state)],
-        )
+        if check_update_rule:
+            assert np.allclose(
+                quantum_memory_state,
+                self.encoder.memory_state_map[self.encoder.update_rule(input_state, output_state, self.memory_state)],
+            )
 
         # Get the value corresponding to the new memory state
         self.memory_state = min(
@@ -404,9 +395,9 @@ class Agent:
 
         return output_state
 
-    def update(self, input_state: str):
+    def update(self, input_state: str, check_update_rule: bool = False):
         if self.quantum:
-            output_state = self.update_quantum(input_state)
+            output_state = self.update_quantum(input_state, check_update_rule)
         else:
             output_state = self.update_classical(input_state)
         self.move()
@@ -433,7 +424,7 @@ class Simulation:
         display: bool = True,
         maxit: int = 0,
         entropy_it: int = 0,
-        mode: str = 'quantum',
+        mode: str = QUANTUM,
         use_tqdm: bool = False,
     ):
         '''
@@ -593,7 +584,7 @@ class Simulation:
             nearby_sick = nearby_healthy_immune = False
             for j in nearby_pos_indices:  # For each agent near the main agent
                 other_agent = pos_to_agent[positions[j]]
-                if other_agent == agent:
+                if other_agent is agent:
                     # Continue if they are the same agent
                     continue
 
@@ -661,7 +652,7 @@ class Simulation:
         if self.maxit and self.it >= self.maxit:
             self.close_clicked = True
 
-    def run(self):
+    def run(self) -> tuple[float, float]:
         if self.display:
             self.create_window()
             if self.use_tqdm and self.maxit:
@@ -748,20 +739,30 @@ class Simulation:
             pygame.display.update()
 
     def plot_stats(self, save=False, dpi=300):
+        plt.rcParams.update(
+            {
+                'text.usetex': True,
+                'font.family': 'serif',
+                'font.serif': ['Computer Modern Roman'],
+            }
+        )
+
         # Convert time to years
         x = [d / 365 for d in range(len(self.stats['total']))]
 
-        plt.figure(figsize=(15, 7))
+        plt.figure(figsize=(10, 4.4))
 
-        plt.plot(x, self.stats['total'], label='Total', c='b')
-        plt.plot(x, self.stats['healthy'], label='Healthy', c='g')
-        plt.plot(x, self.stats['immune'], label='Immune', c='grey')
-        plt.plot(x, self.stats['sick'], label='Sick', c='r')
+        plt.plot(x, self.stats['total'], label='Total', c='b', linewidth=1)
+        plt.plot(x, self.stats['healthy'], label='Healthy', c='g', linewidth=1)
+        plt.plot(x, self.stats['immune'], label='Immune', c='grey', linewidth=1)
+        plt.plot(x, self.stats['sick'], label='Sick', c='r', linewidth=1)
         # plt.plot(x, self.stats['dead'], label='Died', c='m')
         # plt.plot(x, self.stats['born'], label='Born', c='k')
         plt.legend()
         plt.xlabel('Time (years)')
         plt.ylabel('Number of agents')
+
+        plt.tight_layout()
 
         if save:
             plt.savefig('statistics.png', dpi=dpi)
@@ -769,9 +770,10 @@ class Simulation:
             plt.show()
 
     def compute_entropy(self):
-        if self.mode == QUANTUM:
-            return self.compute_quantum_entropy()
-        return self.compute_classical_entropy()
+        # if self.mode == QUANTUM:
+        #     return self.compute_quantum_entropy()
+        # return self.compute_classical_entropy()
+        return self.compute_quantum_entropy(), self.compute_classical_entropy()
 
     def compute_quantum_entropy(self):
         total = sum(self.causal_state_occurrence.values())
@@ -780,8 +782,19 @@ class Simulation:
         rho = sum(
             (count / total) * self.density_matrices[state] for state, count in self.causal_state_occurrence.items()
         )
-        qx = -(rho @ log2m(rho)).trace()
-        return qx.real if isinstance(qx, complex) else qx
+
+        eigenvalues = np.linalg.eigvals(rho)
+        # Any complex part of the eigenvalues should be a result of numerical errors as
+        # a valid density matrix always has non-negative real eigenvalues that sum to 1.
+        # If not, `rho` is not a valid density matrix.
+        assert np.all(np.abs(l.imag) < 1e-15 for l in eigenvalues), 'Eigenvalues have significant imaginary part'
+        assert np.all(l.real > -1e-15 for l in eigenvalues), 'Eigenvalues are all non-negative'
+        assert np.abs(np.sum(eigenvalues) - 1) < 1e-14, 'Eigenvalues do not sum to 1'
+        eigenvalues = (max(float(l.real), 0.0) for l in eigenvalues)
+        qx = sum(-l * log2(l) if l != 0 else 0 for l in eigenvalues)
+
+        # qx = float(-(rho @ log2m(rho)).trace().real)
+        return qx
 
     def compute_classical_entropy(self):
         total = sum(self.causal_state_occurrence.values())
@@ -795,7 +808,7 @@ class Simulation:
         return cx
 
 
-if __name__ == '__main__':
+def run_ebola_sim_realistic(mode: str, plot: bool = False, display: bool = False) -> float:
     # Ebola realistic (days)
     sim = Simulation(
         world_size=400,
@@ -804,34 +817,37 @@ if __name__ == '__main__':
         n_sick=5,
         max_agents=1000,
         infection_radius=20,  # Highly infectious
-        p_lose_immunity=0.00019,  # Chosen s.t. immunity lasts ~10 years
-        p_recover=0.034,  # Chosen s.t. disease lasts ~10 days and p_die = p_recover
+        p_lose_immunity=0.000274,  # Chosen s.t. immunity lasts ~10 years
+        p_recover=0.05,  # Chosen s.t. disease lasts ~10 days and p_die = p_recover
         p_infect=0.8,  # Highly infectious
-        p_die=0.0335,  # Chosen s.t. disease lasts ~10 days and p_die = p_recover
+        p_die=0.05,  # Chosen s.t. disease lasts ~10 days and p_die = p_recover
         p_reproduce=0.0003,  # Chosen s.t. birth rate ~0.093 births per woman per year
-        p_random_infect=1.9e-5,  # Chosen s.t. random infection happens in 100 years on average
-        display=True,
+        p_random_infect=1.0 / (365 * 500),  # Chosen s.t. random infection happens in 500 years on average
+        display=display,
         maxit=365 * 100,
         entropy_it=100,
-        mode=CLASSICAL,
+        mode=mode,
         use_tqdm=True,
-        fps=500,  # Set to 0 to run as fast as possible
+        fps=0,  # Set to 0 to run as fast as possible
     )
     ent = sim.run()
     print(f'Entropy: {ent}')
-    sim.plot_stats()
+    if plot:
+        sim.plot_stats(False, 400)
+    return ent
 
-    # fmt: off
+
+def run_ebola_sim_unrealistic(mode: str, plot: bool = False, display: bool = False) -> float:
     # Probabilities yielding higher quantum advantage, but unrealistic model
-    p31 = {'p_random_infect': 0.22566992770784103, 'p_infect': 0.6495918662234014, 'p_recover': 0.3317001281745728, 'p_die': 0.0017300345176949122, 'p_reproduce': 0.0037607666625816445, 'p_lose_immunity': 0.5191374706898385}
-    p386 = {'p_random_infect': 0.21781446648659547, 'p_infect': 0.649537700860323, 'p_recover': 0.34816307261601237, 'p_die': 0.007570520484452336, 'p_reproduce': 0.014558042332675636, 'p_lose_immunity': 0.5854958991419963}
-    p243 = {'p_random_infect': 0.2050821566041816, 'p_infect': 0.6820305666523772, 'p_recover': 0.37005021179158876, 'p_die': 0.006041464206797301, 'p_reproduce': 0.010686394782022237, 'p_lose_immunity': 0.5905842177714449}
-    p321 = {'p_random_infect': 0.19472245703584054, 'p_infect': 0.664607541809361, 'p_recover': 0.368071907616445, 'p_die': 0.0058075208214382, 'p_reproduce': 0.010342016979471695, 'p_lose_immunity': 0.5509518106863879}
-    p248 = {'p_random_infect': 0.20979098218765446, 'p_infect': 0.5789288321890911, 'p_recover': 0.44085649949847305, 'p_die': 0.016119517362148308, 'p_reproduce': 0.019217134034743316, 'p_lose_immunity': 0.5213051861914989}
-    p328 = {'p_random_infect': 0.19477293720743546, 'p_infect': 0.6916352505865965, 'p_recover': 0.36015517597909846, 'p_die': 0.00518063603016832, 'p_reproduce': 0.010647153542723026, 'p_lose_immunity': 0.5708187686461395}
-    # fmt: on
+    p = {
+        'p_random_infect': 0.22566992770784103,
+        'p_infect': 0.6495918662234014,
+        'p_recover': 0.3317001281745728,
+        'p_die': 0.0017300345176949122,
+        'p_reproduce': 0.0037607666625816445,
+        'p_lose_immunity': 0.5191374706898385,
+    }
 
-    p = p31
     sim = Simulation(
         world_size=400,
         step_size=5,
@@ -845,13 +861,20 @@ if __name__ == '__main__':
         p_die=p['p_die'],
         p_reproduce=p['p_reproduce'],
         p_random_infect=p['p_random_infect'],
-        display=True,
+        display=display,
         maxit=365 * 100,
         entropy_it=100,
-        mode=CLASSICAL,
+        mode=mode,
         use_tqdm=True,
-        fps=200,  # Set to 0 to run as fast as possible
+        fps=0,  # Set to 0 to run as fast as possible
     )
     ent = sim.run()
     print(f'Entropy: {ent}')
-    sim.plot_stats()
+    if plot:
+        sim.plot_stats()
+    return ent
+
+
+if __name__ == '__main__':
+    run_ebola_sim_realistic(QUANTUM, plot=True, display=True)
+    # run_ebola_sim_unrealistic(QUANTUM, plot=True, display=True)

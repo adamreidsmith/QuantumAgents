@@ -1,19 +1,22 @@
 from itertools import product
 import random
-from tqdm import tqdm
+
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.linalg import norm
+from qiskit import QuantumCircuit
+from qiskit.circuit.library import UnitaryGate
 from qiskit.quantum_info import Statevector, partial_trace
-import matplotlib.pyplot as plt
+from tqdm import tqdm
 
-from agent_encoding import QuantumAgentEncoder
+from agent_encoding_sparse import QuantumAgentEncoder
 from constants import *
 
 
 def simulate_apc(its=10000, p=None, q=None, seed=None):
-    '''Quantum agent based modelling simulation of the actively perturbed coin.  The agent represents 
-    a single coin with states 0 and 1, receiving a binary input x ∈ {0, 1} at each time step. In 
-    response, the agent flips the coin with probability p if x = 1 and with probability q if x = 0, 
+    '''Quantum agent based modelling simulation of the actively perturbed coin.  The agent represents
+    a single coin with states 0 and 1, receiving a binary input x ∈ {0, 1} at each time step. In
+    response, the agent flips the coin with probability p if x = 1 and with probability q if x = 0,
     where 0 < p, q < 1. The agent then outputs the new state y ∈ {0, 1} of the coin.
     '''
 
@@ -22,7 +25,8 @@ def simulate_apc(its=10000, p=None, q=None, seed=None):
     p = p or random.random()
     q = q or random.random()
 
-    print(f'p: {p}\nq: {q}')
+    print(f'{p = }')
+    print(f'{q = }')
 
     def transition_probabilities(y, x, s):
         '''Transition probabilities for the actively purturbed coin.
@@ -48,21 +52,15 @@ def simulate_apc(its=10000, p=None, q=None, seed=None):
     causal_states = [0, 1]
     inputs = [0, 1]
     outputs = [0, 1]
-    input_encodings = QuantumAgentEncoder.encode_vals(inputs)
-    output_encodings = QuantumAgentEncoder.encode_vals(outputs)
-
-    input_state_map = {input_val: input_encodings[i] for i, input_val in enumerate(inputs)}
-    # output_state_map = {output_val: output_encodings[i] for i, output_val in enumerate(outputs)}
 
     encoder = QuantumAgentEncoder(
         causal_states=causal_states,
         inputs=inputs,
         outputs=outputs,
-        input_encodings=input_encodings,
-        output_encodings=output_encodings,
         transition_probs=transition_probabilities,
         update_rule=update_rule,
-        numerical=False,
+        method='symbolic',
+        clean=False,
     )
     encoder.encode()
 
@@ -70,11 +68,8 @@ def simulate_apc(its=10000, p=None, q=None, seed=None):
     memory_state = 0
     results = []
     for _ in tqdm(range(its), desc=f'Simulating agent for {its} iterations'):
-        qc = encoder.create_quantum_circuit(memory_state, input_state)
-
         # Obtain the statevector
-        sv = Statevector(qc)
-        # sv.seed(random.randint(0, 1e6))
+        sv = encoder.compiled_initial_state_map[(input_state, memory_state)]
 
         # Measure the output qubit and obtain the post-measurement state
         outcome, post_measurement_state = sv.measure([1])
@@ -84,9 +79,7 @@ def simulate_apc(its=10000, p=None, q=None, seed=None):
         results.append([input_state, output_state, memory_state])
 
         # Trace out the input, output, and junk states to obtain the updated memory state
-        quantum_memory_state = np.asarray(partial_trace(post_measurement_state, [0, 1, 2]).to_statevector()).reshape(
-            2, 1
-        )
+        quantum_memory_state = partial_trace(post_measurement_state, [0, 1, 2]).to_statevector()._data.reshape(2, 1)
 
         # Make sure the new memory state agrees with the update rule
         assert np.allclose(
@@ -143,7 +136,15 @@ def simulate_apc(its=10000, p=None, q=None, seed=None):
             # Get the theoretical transition probability
             probs_theoretical.append(transition_probabilities(y, x, s))
 
-    states = [f'$\mathbb P(y={s[0]}|x={s[1]},s=s_{s[2]})$' for s in states]
+    states = [rf'$\mathbb P(y={s[0]}|x={s[1]},s=s_{s[2]})$' for s in states]
+
+    plt.rcParams.update(
+        {
+            'text.usetex': True,
+            'font.family': 'serif',
+            'font.serif': ['Computer Modern Roman'],
+        }
+    )
 
     plt.figure(figsize=(8, 5))
     plt.rcParams.update({'font.size': 12, 'text.usetex': True, 'text.latex.preamble': r'\usepackage{amsfonts}'})
@@ -156,10 +157,10 @@ def simulate_apc(its=10000, p=None, q=None, seed=None):
     plt.axhline(y=1 - p, color='k', linestyle=':', linewidth=0.9, zorder=0)
     plt.axhline(y=q, color='k', linestyle=':', linewidth=0.9, zorder=0)
     plt.axhline(y=1 - q, color='k', linestyle=':', linewidth=0.9, zorder=0)
-    plt.text(x=plt.xlim()[1] + 0.03, y=p - 0.008, s='$p$')
-    plt.text(x=plt.xlim()[1] + 0.03, y=1 - p - 0.008, s='$1-p$')
-    plt.text(x=plt.xlim()[1] + 0.03, y=q - 0.008, s='$q$')
-    plt.text(x=plt.xlim()[1] + 0.03, y=1 - q - 0.008, s='$1-q$')
+    plt.text(x=plt.xlim()[1] + 0.05, y=p - 0.008, s='$p$')
+    plt.text(x=plt.xlim()[1] + 0.05, y=1 - p - 0.008, s='$1-p$')
+    plt.text(x=plt.xlim()[1] + 0.05, y=q - 0.008, s='$q$')
+    plt.text(x=plt.xlim()[1] + 0.05, y=1 - q - 0.008, s='$1-q$')
     plt.xticks(fontsize=8, rotation=20)
     plt.yticks(np.arange(0, 1.1, 0.2))
     plt.tight_layout()

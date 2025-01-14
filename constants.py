@@ -13,3 +13,9 @@ PI_ON_4 = np.pi / 4
 
 QUANTUM = 'quantum'
 CLASSICAL = 'classical'
+
+NORTH = 'ggrrrr'
+SOUTH = 'rrrggr'
+NS_TURNING = 'grrgrr'
+NS_STRAIGHT = 'rgrrgr'
+EW = 'rrgrrg'
