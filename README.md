@@ -53,7 +53,7 @@ The project implements three main quantum agent-based models:
 
 ## Results
 
-Figure 2 shows the theoretical and computed transition probabilities for the actively perturbed coin, confirming that the quantum encoding accurately replicates the classical model.
+Figure 2 shows the theoretical and computed transition probabilities for the actively perturbed coin, confirming that the quantum encoding accurately replicates the classical $\epsilon$-transducer.
 <p align="center">
   <img src="figs/transition_probabilities.png" alt="Transition probabilities" width="650">
 </p>
