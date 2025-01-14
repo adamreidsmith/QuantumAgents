@@ -9,11 +9,19 @@ The project implements three main quantum agent-based models:
 2. **Viral Infection Model**: Simulates the spread and perpetuation of a viral infection (specifically, the Ebola virus) in a closed population with agents that can be in one of four states: sick, immune, healthy, or dead. The model is based on [this](http://www.netlogoweb.org/launch#http://www.netlogoweb.org/assets/modelslib/Sample%20Models/Biology/Virus.nlogo) model from [NetLogo](https://ccl.northwestern.edu/netlogo/) and includes mechanisms for infection spread, recovery, death, immunity loss, and reproduction.
 3. **Traffic Intersection Model**: Simulates a six-lane traffic intersection with quantum-encoded lane agents and a classical traffic light control system. The model handles vehicle queuing, traffic light timing, and vehicle flow through the intersection.
 
-
+<!-- 
 <picture>
   <source srcset="figs/intersection.png" />
   <img src="figs/intersection.png" alt="intersection" width=100px />
-</picture>
+</picture> -->
+
+<p align="center">
+  <img src="figs/intersection.png" alt="Image Description" width="300">
+</p>
+
+<p align="center">
+  <em>Caption for the image</em>
+</p>
 
 ## Features
 
