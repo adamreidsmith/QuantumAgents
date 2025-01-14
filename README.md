@@ -30,12 +30,12 @@ The project implements three main quantum agent-based models:
 ### Viral Infection Model
 | Parameter | Description | Default Value |
 | --------- | ----------- | ------------- | 
-| $p_{recover}$ | Daily probability of recovery | 0.05 |
-| $p_{die}$ | Daily probability of death for infected | 0.05 |
-| $`p_{lose\_immunity}`$ | Daily probability of losing immunity | 0.00027 |
-| $p_{infect}$ | Probability of infection on contact | 0.8 |
+| $p_{recover}$ | Daily probability of recovery | $0.05$ |
+| $p_{die}$ | Daily probability of death for infected | $0.05$ |
+| $`p_{lose\_immunity}`$ | Daily probability of losing immunity | $0.00027$ |
+| $p_{infect}$ | Probability of infection on contact | $0.8$ |
 | $`p_{random\_infect}`$ | Daily probability of random infection | $`5.5\cdot 10 ^{-6}`$ |
-| $p_{reproduce} | Daily probability of reproduction | 0.0003 |
+| $p_{reproduce}$ | Daily probability of reproduction | $0.0003$ |
 
 ## Results
 
