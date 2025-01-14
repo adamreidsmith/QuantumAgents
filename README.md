@@ -29,7 +29,7 @@ The project implements three main quantum agent-based models:
 
 Figure 2 shows the number of agents occupying each state throughout a 100-year simulation of the viral infection model. Outbreaks are clearly evident by the spikes in the population of sick agents and the corresponding drops in the number of healthy agents.
 <p align="center">
-  <img src="figs/statistics500.png" alt="EVD counts" width="400">
+  <img src="figs/statistics500.png" alt="EVD counts" width="600">
 </p>
 <p align="center">
   <em>Figure 2: Agent counts through a 100-year simulation of the viral infection model.</em>
@@ -37,19 +37,18 @@ Figure 2 shows the number of agents occupying each state throughout a 100-year s
 
 Figure 3 shows the distributions of queue length and wait times between green lights for a 250,000-light cycle simulation of the intersection model. Each lane accumulates a similar queue length between green lights, however, the lower vehicle arrival rates of lanes 3 and 6 lead to higher wait times.
 <p align="center">
-  <img src="figs/queue_dists250000.png" alt="Queue distributions" width="400">
+  <img src="figs/queue_dists250000.png" alt="Queue distributions" width="600">
 </p>
 <p align="center">
   <em>Figure 3: KDE distributions of maximal queue length and wait times between green lights for each lane configuration.</em>
 </p>
-
 
 The implementation demonstrates significant memory compression for the traffic intersection model:
 - 32.4% improvement for lanes 1 & 4
 - 40.5% improvement for lanes 2 & 5
 - 20.3% improvement for lanes 3 & 6
 
-The viral infection model shows minimal quantum advantage due to the near-orthogonality of its memory states.
+The viral infection model shows minimal quantum advantage (approximately 0.0015%) due to the near-orthogonality of its memory states.
 
 ## References
 
