@@ -7,20 +7,13 @@ The project implements three main quantum agent-based models:
 
 1. **Actively Perturbed Coin**: A simple example described in [2] to illustrate the memory advantage provided by the quantum framework.  The agent represents a single coin with states 0 and 1, receiving a binary input $`x\in\{0,1\}`$ at each time step. In response, the agent flips the coin with probability $p$ if $x=1$ and with probability $q$ if $x=0$, where $`0 \lt p,q \lt 1`$. The agent then outputs the new state $`y\in\{0,1\}`$ of the coin.
 2. **Viral Infection Model**: Simulates the spread and perpetuation of a viral infection (specifically, the Ebola virus) in a closed population with agents that can be in one of four states: sick, immune, healthy, or dead. The model is based on [this](http://www.netlogoweb.org/launch#http://www.netlogoweb.org/assets/modelslib/Sample%20Models/Biology/Virus.nlogo) model from [NetLogo](https://ccl.northwestern.edu/netlogo/) and includes mechanisms for infection spread, recovery, death, immunity loss, and reproduction.
-3. **Traffic Intersection Model**: Simulates a six-lane traffic intersection with quantum-encoded lane agents and a classical traffic light control system. The model handles vehicle queuing, traffic light timing, and vehicle flow through the intersection.
-
-<!-- 
-<picture>
-  <source srcset="figs/intersection.png" />
-  <img src="figs/intersection.png" alt="intersection" width=100px />
-</picture> -->
+3. **Traffic Intersection Model**: Simulates the six-lane traffic intersection of figure 1 with quantum-encoded lane agents and a classical traffic light control system. The model handles vehicle queuing, traffic light timing, and vehicle flow through the intersection.
 
 <p align="center">
-  <img src="figs/intersection.png" alt="Image Description" width="300">
+  <img src="figs/intersection.png" alt="Intersection" width="300">
 </p>
-
 <p align="center">
-  <em>Caption for the image</em>
+  <em>Figure 1: Intersection configuration.</em>
 </p>
 
 ## Features
@@ -33,6 +26,23 @@ The project implements three main quantum agent-based models:
 - Visualization capabilities for simulation results
 
 ## Results
+
+Figure 2 shows the number of agents occupying each state throughout a 100-year simulation of the viral infection model. Outbreaks are clearly evident by the spikes in the population of sick agents and the corresponding drops in the number of healthy agents.
+<p align="center">
+  <img src="figs/statistics500.png" alt="EVD counts" width="400">
+</p>
+<p align="center">
+  <em>Figure 2: Agent counts through a 100-year simulation of the viral infection model.</em>
+</p>
+
+Figure 3 shows the distributions of queue length and wait times between green lights for a 250,000-light cycle simulation of the intersection model. Each lane accumulates a similar queue length between green lights, however, the lower vehicle arrival rates of lanes 3 and 6 lead to higher wait times.
+<p align="center">
+  <img src="figs/queue_dists250000.png" alt="Queue distributions" width="400">
+</p>
+<p align="center">
+  <em>Figure 3: KDE distributions of maximal queue length and wait times between green lights for each lane configuration.</em>
+</p>
+
 
 The implementation demonstrates significant memory compression for the traffic intersection model:
 - 32.4% improvement for lanes 1 & 4
