@@ -11,8 +11,8 @@ The project implements three main quantum agent-based models:
 
 
 <picture>
-  <source srcset="figs/intersection.png" media="(min-width: 100px)" />
-  <img src="figs/intersection.png" alt="intersection" />
+  <source srcset="figs/intersection.png" />
+  <img src="figs/intersection.png" alt="intersection" width=100px />
 </picture>
 
 ## Features
