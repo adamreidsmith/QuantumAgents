@@ -77,7 +77,7 @@ Figure 4 shows the distributions of queue length and wait times between green li
   <em>Figure 4: KDE distributions of maximal queue length and wait times between green lights for each lane configuration.</em>
 </p>
 
-The entropy of the classical actively perturbed coin is $C_X=1$, but its quantum encoding exhibits entropy $`Q_X=-\log_2\left(\sqrt{\nicefrac{1}{4}-4\alpha}\right) - 2\sqrt{\alpha}\log_2\left( \frac{1+4\sqrt{\alpha}}{1-4\sqrt{\alpha}} \right)`$
+The entropy of the classical actively perturbed coin is $C_X=1$, but its quantum encoding exhibits entropy $$`Q_X=-\log_2\left(\sqrt{\frac{1}{4}-4\alpha}\right) - 2\sqrt{\alpha}\log_2\left( \frac{1+4\sqrt{\alpha}}{1-4\sqrt{\alpha}} \right)`$$
 
 The traffic intersection model implementation demonstrates significant memory compression:
 - 32.4% improvement for lanes 1 & 4
